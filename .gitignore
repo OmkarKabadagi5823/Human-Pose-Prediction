@@ -159,3 +159,13 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+# VS Code
+.vscode/
+
+# Datasets
+data/datasets/CHICO/*
+!data/datasets/CHICO/.gitkeep
+
+data/datasets/h36m/*
+!data/datasets/h36m/.gitkeep
+
