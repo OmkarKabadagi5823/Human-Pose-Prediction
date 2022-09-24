@@ -1,7 +1,7 @@
 import torch
 import numpy as np
-from models.SeSGCNStudent import Model
-from pose_prediction.error import PredictorStateError
+from .models.SeSGCNStudent import Model
+from .error import PredictorStateError
 
 import configparser
 import time
@@ -35,7 +35,7 @@ class SeSGCNPosePredictor(object):
             'tcnn_dropout': model_parameters.getfloat('tcnn_dropout')
         }
 
-    def load_model(self, model_path: str, checkpoint_path: Optional[str] = None):
+    def create_model(self, checkpoint_path: Optional[str] = None):
         if self._model_parameters is None:
             raise PredictorStateError('Model parameters must be loaded before loading the model.')
 
@@ -78,6 +78,8 @@ class SeSGCNPosePredictor(object):
         self._model.eval()
 
     def predict(self, input_sequence: torch.Tensor):
+        input_sequence = input_sequence.to(self._device)
+
         predicted_sequence = None
         
         with torch.no_grad():
