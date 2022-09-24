@@ -52,8 +52,6 @@ class InteractionMask(nn.Module):
         #self.st_output = nn.Sigmoid()
         #self.st_output = nn.Tanh()
 
-
-
     def forward(self, dense_spatial_interaction,dense_temporal_interaction, threshold):
     #def forward(self, dense_st_interaction, threshold):
 
@@ -79,7 +77,6 @@ class InteractionMask(nn.Module):
 
 
         return spatial_interaction_mask, temporal_interaction_mask #st_interaction_mask#
-
 
 
 class depthwise_separable_conv(nn.Module):
@@ -153,9 +150,6 @@ class ConvTemporalGraphical(nn.Module):
         return x.contiguous() 
 
 
-# In[3]:
-
-
 class ST_GCNN_layer(nn.Module):
     """
     Shape:
@@ -192,9 +186,6 @@ class ST_GCNN_layer(nn.Module):
         
         self.dsc=depthwise_separable_conv(in_channels, out_channels, K=1)
         
-                
-
-
         if stride != 1 or in_channels != out_channels: 
 
             self.residual=nn.Sequential(nn.Conv2d(
@@ -203,17 +194,13 @@ class ST_GCNN_layer(nn.Module):
                     kernel_size=1,
                     stride=(1, 1)),
                 nn.BatchNorm2d(out_channels),
-            )
-            
-            
+            )          
         else:
             self.residual=nn.Identity()
         
         
         self.prelu = nn.PReLU()
         self.prelu2 = nn.PReLU()
-
-        
 
     def forward(self, x, Amask, Tmask):
      #   assert A.shape[0] == self.kernel_size[1], print(A.shape[0],self.kernel_size)
@@ -223,9 +210,6 @@ class ST_GCNN_layer(nn.Module):
         x=x+res
         x=self.prelu(x)
         return x
-
-
-# In[4]:
 
 
 class CNN_layer(nn.Module): # This is the simple CNN layer,that performs a 2-D convolution while maintaining the dimensions of the input(except for the features dimension)
@@ -241,26 +225,17 @@ class CNN_layer(nn.Module): # This is the simple CNN layer,that performs a 2-D c
         self.kernel_size = kernel_size
         padding = ((kernel_size[0] - 1) // 2, (kernel_size[1] - 1) // 2) # padding so that both dimensions are maintained
         assert kernel_size[0] % 2 == 1 and kernel_size[1] % 2 == 1
-
-        
-        
+ 
         self.block= [nn.Conv2d(in_channels,out_channels,kernel_size=kernel_size,padding=padding)
                      ,nn.BatchNorm2d(out_channels),nn.Dropout(dropout, inplace=True)] 
-
-
-
-            
+     
         
-        self.block=nn.Sequential(*self.block)
-        
+        self.block=nn.Sequential(*self.block)   
 
     def forward(self, x):
         
         output= self.block(x)
         return output
-
-
-# In[11]:
 
 
 class Model(nn.Module):
@@ -289,8 +264,6 @@ class Model(nn.Module):
         
         super(Model,self).__init__()
 
-
-
         self.input_time_frame=input_time_frame
         self.output_time_frame=output_time_frame
         self.joints_to_consider=joints_to_consider
@@ -298,7 +271,6 @@ class Model(nn.Module):
         self.n_txcnn_layers=n_txcnn_layers
         self.txcnns=nn.ModuleList()
         
-      
         self.st_gcnns.append(ST_GCNN_layer(input_channels,66,[1,1],1,input_time_frame,
                                            joints_to_consider,st_gcnn_dropout))
         self.st_gcnns.append(ST_GCNN_layer(66,66,[1,1],1,input_time_frame,      #3,3
@@ -310,20 +282,15 @@ class Model(nn.Module):
                                                
         self.st_gcnns.append(ST_GCNN_layer(66,input_channels,[1,1],1,input_time_frame,
                                                joints_to_consider,st_gcnn_dropout))                                               
-                
-                
+                  
                 # at this point, we must permute the dimensions of the gcn network, from (N,C,T,V) into (N,T,C,V)           
         self.txcnns.append(CNN_layer(input_time_frame,output_time_frame,txc_kernel_size,txc_dropout)) # with kernel_size[3,3] the dimensinons of C,V will be maintained       
         for i in range(1,n_txcnn_layers):
             self.txcnns.append(CNN_layer(output_time_frame,output_time_frame,txc_kernel_size,txc_dropout))
-        
-            
+               
         self.prelus = nn.ModuleList()
         for j in range(n_txcnn_layers):
-            self.prelus.append(nn.PReLU())
-
-
-        
+            self.prelus.append(nn.PReLU())   
     
     def forward(self, x, maskA, maskT):
         num = 0
@@ -333,9 +300,15 @@ class Model(nn.Module):
             
         x= x.permute(0,2,1,3) # prepare the input for the Time-Extrapolator-CNN (NCTV->NTCV)
         
-        x=self.prelus[0](self.txcnns[0](x))
+        # x=self.prelus[0](self.txcnns[0](x))
         
-        for i in range(1,self.n_txcnn_layers):
-            x = self.prelus[i](self.txcnns[i](x)) +x # residual connection
+        # for i in range(1,self.n_txcnn_layers):
+        #     x = self.prelus[i](self.txcnns[i](x)) +x # residual connection
+
+        for i, (prelu, txcnn) in enumerate(zip(self.prelus, self.txcnns)):
+            if i == 0:
+                x = prelu(txcnn(x))
+            else:
+                x = prelu(txcnn(x)) + x
             
         return x
