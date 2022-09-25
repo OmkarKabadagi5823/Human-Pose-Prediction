@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from .models.SeSGCNStudent import Model
+from .models.SeSGCNStudent import SeSGCN
 from .error import PredictorStateError
 
 import configparser
@@ -39,7 +39,7 @@ class SeSGCNPosePredictor(object):
         if self._model_parameters is None:
             raise PredictorStateError('Model parameters must be loaded before loading the model.')
 
-        self._model = Model(
+        self._model = SeSGCN(
             self._model_parameters['input_channels'],
             self._model_parameters['input_frames'],
             self._model_parameters['output_frames'],
